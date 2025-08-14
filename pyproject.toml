@@ -1,0 +1,72 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "difix3d"
+version = "0.1.0"
+description = "Difix3D+: Improving 3D Reconstructions with Single-Step Diffusion Models"
+readme = "README.md"
+license = { file = "LICENSE.txt" }
+authors = [
+    { name = "Jay Zhangjie Wu" },
+    { name = "Yuxuan Zhang" },
+    { name = "Haithem Turki" },
+    { name = "Xuanchi Ren" },
+    { name = "Jun Gao" },
+    { name = "Mike Zheng Shou" },
+    { name = "Sanja Fidler" },
+    { name = "Zan Gojcic" },
+    { name = "Huan Ling" },
+]
+maintainers = [
+    { name = "NVIDIA Toronto AI Lab", email = "nv-tlabs@nvidia.com" },
+]
+keywords = [
+    "3d-reconstruction",
+    "diffusion-models",
+    "computer-vision",
+    "deep-learning",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: Other/Proprietary License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Image Processing",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "torch",
+    "torchvision",
+    "torchmetrics",
+    "wandb",
+    "imageio[ffmpeg]",
+    "einops",
+    "lpips",
+    "xformers",
+    "peft==0.9.0",
+    "diffusers==0.25.1",
+    "huggingface-hub==0.25.1",
+    "transformers==4.38.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-cov", "black", "isort", "flake8", "mypy"]
+nerfstudio = ["nerfstudio"]
+gsplat = ["gsplat"]
+
+[project.urls]
+Homepage = "https://research.nvidia.com/labs/toronto-ai/difix3d/"
+Repository = "https://github.com/nv-tlabs/Difix3D"
+Documentation = "https://github.com/nv-tlabs/Difix3D/blob/main/README.md"
+"Bug Tracker" = "https://github.com/nv-tlabs/Difix3D/issues"
+
+[tool.setuptools.package-dir]
+difix3d = "src"

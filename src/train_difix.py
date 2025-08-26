@@ -142,7 +142,7 @@ def main(args):
             raise NotImplementedError(f"Invalid resume path: {args.resume}")
     else:
         print("=" * 50)
-        print(f"Training from scratch")
+        print("Training from scratch")
         print("=" * 50)
 
     weight_dtype = torch.float32

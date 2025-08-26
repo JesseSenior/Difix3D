@@ -22,12 +22,15 @@ CVPR 2025 (Oral)
 git clone https://github.com/nv-tlabs/Difix3D.git
 cd Difix3D
 pip install -r requirements.txt
+
+# Or
+pip install git+https://github.com/JesseSenior/Difix3D.git
 ```
 
 ## Quickstart (diffusers)
 
-```
-from pipeline_difix import DifixPipeline
+```python
+from difix3d.pipeline_difix import DifixPipeline
 from diffusers.utils import load_image
 
 pipe = DifixPipeline.from_pretrained("nvidia/difix", trust_remote_code=True)
@@ -41,8 +44,8 @@ output_image.save("example_output.png")
 ```
 
 Optionally, you can use a reference image to guide the denoising process.
-```
-from pipeline_difix import DifixPipeline
+```python
+from difix3d.pipeline_difix import DifixPipeline
 from diffusers.utils import load_image
 
 pipe = DifixPipeline.from_pretrained("nvidia/difix_ref", trust_remote_code=True)

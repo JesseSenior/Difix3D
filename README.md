@@ -88,6 +88,8 @@ Prepare your dataset in the following JSON format:
 #### Single GPU
 
 ```bash
+# NOTE: If dataset has ref_image, add --mv_unet to follow paper's behavior.
+
 accelerate launch --mixed_precision=bf16 src/train_difix.py \
     --output_dir=./outputs/difix/train \
     --dataset_path="data/data.json" \
@@ -103,6 +105,8 @@ accelerate launch --mixed_precision=bf16 src/train_difix.py \
 #### Multipe GPUs
 
 ```bash
+# NOTE: If dataset has ref_image, add --mv_unet to follow paper's behavior.
+
 export NUM_NODES=1
 export NUM_GPUS=8
 accelerate launch --mixed_precision=bf16 --main_process_port 29501 --multi_gpu --num_machines $NUM_NODES --num_processes $NUM_GPUS src/train_difix.py \

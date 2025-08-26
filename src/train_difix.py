@@ -395,9 +395,6 @@ if __name__ == "__main__":
 
     # dataset options
     parser.add_argument("--dataset_path", required=True, type=str)
-    parser.add_argument("--train_image_prep", default="resized_crop_512", type=str)
-    parser.add_argument("--test_image_prep", default="resized_crop_512", type=str)
-    parser.add_argument("--prompt", default=None, type=str)
 
     # validation eval args
     parser.add_argument("--eval_freq", default=100, type=int)
@@ -410,58 +407,26 @@ if __name__ == "__main__":
     parser.add_argument("--tracker_run_name", type=str, required=True)
 
     # details about the model architecture
-    parser.add_argument("--pretrained_model_name_or_path")
-    parser.add_argument(
-        "--revision",
-        type=str,
-        default=None,
-    )
-    parser.add_argument(
-        "--variant",
-        type=str,
-        default=None,
-    )
-    parser.add_argument("--tokenizer_name", type=str, default=None)
     parser.add_argument("--lora_rank_vae", default=4, type=int)
     parser.add_argument("--timestep", default=199, type=int)
     parser.add_argument("--mv_unet", action="store_true")
 
     # training details
     parser.add_argument("--output_dir", required=True)
-    parser.add_argument(
-        "--cache_dir",
-        default=None,
-    )
     parser.add_argument("--seed", type=int, default=None, help="A seed for reproducible training.")
-    parser.add_argument(
-        "--resolution",
-        type=int,
-        default=512,
-    )
     parser.add_argument(
         "--train_batch_size", type=int, default=4, help="Batch size (per device) for the training dataloader."
     )
     parser.add_argument("--num_training_epochs", type=int, default=10)
-    parser.add_argument(
-        "--max_train_steps",
-        type=int,
-        default=10_000,
-    )
-    parser.add_argument(
-        "--checkpointing_steps",
-        type=int,
-        default=500,
-    )
+    parser.add_argument("--max_train_steps", type=int, default=10_000)
+    parser.add_argument("--checkpointing_steps", type=int, default=500)
     parser.add_argument(
         "--gradient_accumulation_steps",
         type=int,
         default=1,
         help="Number of updates steps to accumulate before performing a backward/update pass.",
     )
-    parser.add_argument(
-        "--gradient_checkpointing",
-        action="store_true",
-    )
+    parser.add_argument("--gradient_checkpointing", action="store_true")
     parser.add_argument("--learning_rate", type=float, default=5e-6)
     parser.add_argument(
         "--lr_scheduler",
@@ -483,11 +448,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--lr_power", type=float, default=1.0, help="Power factor of the polynomial scheduler.")
 
-    parser.add_argument(
-        "--dataloader_num_workers",
-        type=int,
-        default=0,
-    )
+    parser.add_argument("--dataloader_num_workers", type=int, default=0)
     parser.add_argument("--adam_beta1", type=float, default=0.9, help="The beta1 parameter for the Adam optimizer.")
     parser.add_argument("--adam_beta2", type=float, default=0.999, help="The beta2 parameter for the Adam optimizer.")
     parser.add_argument("--adam_weight_decay", type=float, default=1e-2, help="Weight decay to use.")
@@ -510,19 +471,11 @@ if __name__ == "__main__":
             ' (default), `"wandb"` and `"comet_ml"`. Use `"all"` to report to all integrations.'
         ),
     )
-    parser.add_argument(
-        "--mixed_precision",
-        type=str,
-        default=None,
-        choices=["no", "fp16", "bf16"],
-    )
+    parser.add_argument("--mixed_precision", type=str, default=None, choices=["no", "fp16", "bf16"])
     parser.add_argument(
         "--enable_xformers_memory_efficient_attention", action="store_true", help="Whether or not to use xformers."
     )
-    parser.add_argument(
-        "--set_grads_to_none",
-        action="store_true",
-    )
+    parser.add_argument("--set_grads_to_none", action="store_true")
 
     # resume
     parser.add_argument("--resume", default=None, type=str)

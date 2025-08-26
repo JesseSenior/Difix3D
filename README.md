@@ -92,7 +92,7 @@ accelerate launch --mixed_precision=bf16 src/train_difix.py \
     --output_dir=./outputs/difix/train \
     --dataset_path="data/data.json" \
     --max_train_steps 10000 \
-    --resolution=512 --learning_rate 2e-5 \
+    --learning_rate 2e-5 \
     --train_batch_size=1 --dataloader_num_workers 8 \
     --enable_xformers_memory_efficient_attention \
     --checkpointing_steps=1000 --eval_freq 1000 --viz_freq 100 \
@@ -109,7 +109,7 @@ accelerate launch --mixed_precision=bf16 --main_process_port 29501 --multi_gpu -
     --output_dir=./outputs/difix/train \
     --dataset_path="data/data.json" \
     --max_train_steps 10000 \
-    --resolution=512 --learning_rate 2e-5 \
+    --learning_rate 2e-5 \
     --train_batch_size=1 --dataloader_num_workers 8 \
     --enable_xformers_memory_efficient_attention \
     --checkpointing_steps=1000 --eval_freq 1000 --viz_freq 100 \

@@ -257,21 +257,51 @@ def main(args):
                         log_dict = {
                             "train/source": [
                                 wandb.Image(
-                                    rearrange(x_src, "b v c h w -> b c (v h) w")[idx].float().detach().cpu(),
+                                    (
+                                        (
+                                            rearrange(x_src, "b v c h w -> b c (v h) w")[idx].float().detach().cpu()
+                                            * 0.5
+                                            + 0.5
+                                        )
+                                        * 255
+                                    )
+                                    .clamp(0, 255)
+                                    .byte(),
                                     caption=f"idx={idx}",
                                 )
                                 for idx in range(B)
                             ],
                             "train/target": [
                                 wandb.Image(
-                                    rearrange(x_tgt, "b v c h w -> b c (v h) w")[idx].float().detach().cpu(),
+                                    (
+                                        (
+                                            rearrange(x_tgt, "b v c h w -> b c (v h) w")[idx].float().detach().cpu()
+                                            * 0.5
+                                            + 0.5
+                                        )
+                                        * 255
+                                    )
+                                    .clamp(0, 255)
+                                    .byte(),
                                     caption=f"idx={idx}",
                                 )
                                 for idx in range(B)
                             ],
                             "train/model_output": [
                                 wandb.Image(
-                                    rearrange(x_tgt_pred, "b v c h w -> b c (v h) w")[idx].float().detach().cpu(),
+                                    (
+                                        (
+                                            rearrange(x_tgt_pred, "b v c h w -> b c (v h) w")[idx]
+                                            .float()
+                                            .detach()
+                                            .cpu()
+                                            * 0.5
+                                            + 0.5
+                                        )
+                                        * 255
+                                    )
+                                    .clamp(0, 255)
+                                    .byte(),
                                     caption=f"idx={idx}",
                                 )
                                 for idx in range(B)
@@ -306,19 +336,55 @@ def main(args):
                                 if step % 10 == 0:
                                     log_dict["sample/source"].append(
                                         wandb.Image(
-                                            rearrange(x_src, "b v c h w -> b c (v h) w")[0].float().detach().cpu(),
+                                            (
+                                                (
+                                                    rearrange(x_src, "b v c h w -> b c (v h) w")[0]
+                                                    .float()
+                                                    .detach()
+                                                    .cpu()
+                                                    * 0.5
+                                                    + 0.5
+                                                )
+                                                * 255
+                                            )
+                                            .clamp(0, 255)
+                                            .byte(),
                                             caption=f"idx={len(log_dict['sample/source'])}",
                                         )
                                     )
                                     log_dict["sample/target"].append(
                                         wandb.Image(
-                                            rearrange(x_tgt, "b v c h w -> b c (v h) w")[0].float().detach().cpu(),
+                                            (
+                                                (
+                                                    rearrange(x_tgt, "b v c h w -> b c (v h) w")[0]
+                                                    .float()
+                                                    .detach()
+                                                    .cpu()
+                                                    * 0.5
+                                                    + 0.5
+                                                )
+                                                * 255
+                                            )
+                                            .clamp(0, 255)
+                                            .byte(),
                                             caption=f"idx={len(log_dict['sample/source'])}",
                                         )
                                     )
                                     log_dict["sample/model_output"].append(
                                         wandb.Image(
-                                            rearrange(x_tgt_pred, "b v c h w -> b c (v h) w")[0].float().detach().cpu(),
+                                            (
+                                                (
+                                                    rearrange(x_tgt_pred, "b v c h w -> b c (v h) w")[0]
+                                                    .float()
+                                                    .detach()
+                                                    .cpu()
+                                                    * 0.5
+                                                    + 0.5
+                                                )
+                                                * 255
+                                            )
+                                            .clamp(0, 255)
+                                            .byte(),
                                             caption=f"idx={len(log_dict['sample/source'])}",
                                         )
                                     )

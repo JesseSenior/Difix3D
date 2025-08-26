@@ -23,6 +23,8 @@ from diffusers.utils.import_utils import is_xformers_available
 from diffusers.optimization import get_scheduler
 
 import wandb
+import deepspeed
+from deepspeed.ops.adam import FusedAdam
 
 from model import Difix, load_ckpt_from_state_dict, save_ckpt
 from dataset import PairedDataset
@@ -93,13 +95,24 @@ def main(args):
         + list(net_difix.vae.decoder.skip_conv_4.parameters())
     )
 
-    optimizer = torch.optim.AdamW(
-        layers_to_opt,
-        lr=args.learning_rate,
-        betas=(args.adam_beta1, args.adam_beta2),
-        weight_decay=args.adam_weight_decay,
-        eps=args.adam_epsilon,
-    )
+    # 替换原有的optimizer创建代码
+    if args.deepspeed:
+        # 使用DeepSpeed的FusedAdam优化器
+        optimizer = FusedAdam(
+            layers_to_opt,
+            lr=args.learning_rate,
+            betas=(args.adam_beta1, args.adam_beta2),
+            weight_decay=args.adam_weight_decay,
+            eps=args.adam_epsilon,
+        )
+    else:
+        optimizer = torch.optim.AdamW(
+            layers_to_opt,
+            lr=args.learning_rate,
+            betas=(args.adam_beta1, args.adam_beta2),
+            weight_decay=args.adam_weight_decay,
+            eps=args.adam_epsilon,
+        )
     lr_scheduler = get_scheduler(
         args.lr_scheduler,
         optimizer=optimizer,
@@ -174,7 +187,78 @@ def main(args):
     net_vgg.to(accelerator.device, dtype=weight_dtype)
 
     # Prepare everything with our `accelerator`.
-    net_difix, optimizer, dl_train, lr_scheduler = accelerator.prepare(net_difix, optimizer, dl_train, lr_scheduler)
+    if args.deepspeed:
+        # 创建DeepSpeed配置
+        if args.deepspeed_config is None:
+            deepspeed_config = {
+                "train_batch_size": args.train_batch_size * accelerator.num_processes * args.gradient_accumulation_steps,
+                "gradient_accumulation_steps": args.gradient_accumulation_steps,
+                "optimizer": {
+                    "type": "FusedAdam",
+                    "params": {
+                        "lr": args.learning_rate,
+                        "betas": [args.adam_beta1, args.adam_beta2],
+                        "eps": args.adam_epsilon,
+                        "weight_decay": args.adam_weight_decay
+                    }
+                },
+                "scheduler": {
+                    "type": "WarmupLR",
+                    "params": {
+                        "warmup_min_lr": 0,
+                        "warmup_max_lr": args.learning_rate,
+                        "warmup_num_steps": args.lr_warmup_steps
+                    }
+                },
+                "zero_optimization": {
+                    "stage": args.zero_stage,
+                    "offload_optimizer": {
+                        "device": "cpu" if args.offload_optimizer else "none"
+                    },
+                    "offload_param": {
+                        "device": "cpu" if args.offload_param else "none"
+                    } if args.zero_stage == 3 else {},
+                    "overlap_comm": True,
+                    "contiguous_gradients": True,
+                    "sub_group_size": 1e9,
+                    "reduce_bucket_size": 5e8,
+                    "stage3_prefetch_bucket_size": 5e7,
+                    "stage3_param_persistence_threshold": 1e5,
+                    "stage3_max_live_parameters": 1e9,
+                    "stage3_max_reuse_distance": 1e9,
+                    "gather_16bit_weights_on_model_save": True
+                },
+                "fp16": {
+                    "enabled": args.mixed_precision == "fp16",
+                    "loss_scale": 0,
+                    "loss_scale_window": 1000,
+                    "hysteresis": 2,
+                    "min_loss_scale": 1
+                },
+                "bf16": {
+                    "enabled": args.mixed_precision == "bf16"
+                },
+                "gradient_clipping": args.max_grad_norm,
+                "wall_clock_breakdown": False
+            }
+        else:
+            import json
+            with open(args.deepspeed_config, 'r') as f:
+                deepspeed_config = json.load(f)
+        
+        # 初始化DeepSpeed
+        net_difix, optimizer, _, lr_scheduler = deepspeed.initialize(
+            model=net_difix,
+            optimizer=optimizer,
+            lr_scheduler=lr_scheduler,
+            config=deepspeed_config
+        )
+        
+        # 对于DeepSpeed，不需要使用accelerator.prepare()来准备模型和优化器
+        dl_train, = accelerator.prepare(dl_train,)
+    else:
+        # 原有的prepare调用
+        net_difix, optimizer, dl_train, lr_scheduler = accelerator.prepare(net_difix, optimizer, dl_train, lr_scheduler)
     net_lpips, net_vgg = accelerator.prepare(net_lpips, net_vgg)
     # renorm with image net statistics
     t_vgg_renorm = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
@@ -245,12 +329,16 @@ def main(args):
                     else:
                         loss_gram = torch.tensor(0.0).to(weight_dtype)
 
-                accelerator.backward(loss, retain_graph=False)
-                if accelerator.sync_gradients:
-                    accelerator.clip_grad_norm_(layers_to_opt, args.max_grad_norm)
-                optimizer.step()
-                lr_scheduler.step()
-                optimizer.zero_grad(set_to_none=args.set_grads_to_none)
+                if args.deepspeed:
+                    net_difix.backward(loss)
+                    net_difix.step()
+                else:
+                    accelerator.backward(loss, retain_graph=False)
+                    if accelerator.sync_gradients:
+                        accelerator.clip_grad_norm_(layers_to_opt, args.max_grad_norm)
+                    optimizer.step()
+                    lr_scheduler.step()
+                    optimizer.zero_grad(set_to_none=args.set_grads_to_none)
 
                 x_tgt = rearrange(x_tgt, "(b v) c h w -> b v c h w", v=V)
                 x_tgt_pred = rearrange(x_tgt_pred, "(b v) c h w -> b v c h w", v=V)
@@ -330,8 +418,13 @@ def main(args):
                     # checkpoint the model
                     if global_step % args.checkpointing_steps == 1:
                         outf = os.path.join(args.output_dir, "checkpoints", f"model_{global_step}.pkl")
-                        # accelerator.unwrap_model(net_difix).save_model(outf)
-                        save_ckpt(accelerator.unwrap_model(net_difix), optimizer, outf)
+                        if args.deepspeed:
+                            # DeepSpeed保存检查点
+                            net_difix.save_checkpoint(os.path.join(args.output_dir, "checkpoints"), f"deepspeed_{global_step}")
+                            # 同时保存我们的格式以保持兼容性
+                            save_ckpt(net_difix.module, optimizer, outf)
+                        else:
+                            save_ckpt(accelerator.unwrap_model(net_difix), optimizer, outf)
 
                     # compute validation set L2, LPIPS
                     if args.eval_freq > 0 and global_step % args.eval_freq == 1:
@@ -346,7 +439,8 @@ def main(args):
                             assert B == 1, "Use batch size 1 for eval."
                             with torch.no_grad():
                                 # forward pass
-                                x_tgt_pred = accelerator.unwrap_model(net_difix)(
+                                model_for_eval = net_difix.module if args.deepspeed else accelerator.unwrap_model(net_difix)
+                                x_tgt_pred = model_for_eval(
                                     x_src, prompt_tokens=batch_val["input_ids"].cuda()
                                 )
 
@@ -435,7 +529,11 @@ def main(args):
     if accelerator.is_main_process:
         # Save final checkpoint
         final_outf = os.path.join(args.output_dir, "checkpoints", f"model_{global_step}.pkl")
-        save_ckpt(accelerator.unwrap_model(net_difix), optimizer, final_outf)
+        if args.deepspeed:
+            net_difix.save_checkpoint(os.path.join(args.output_dir, "checkpoints"), f"deepspeed_final_{global_step}")
+            save_ckpt(net_difix.module, optimizer, final_outf)
+        else:
+            save_ckpt(accelerator.unwrap_model(net_difix), optimizer, final_outf)
         print(f"Training completed. Final checkpoint saved to {final_outf}")
 
         # Final evaluation if not done recently
@@ -450,7 +548,8 @@ def main(args):
                 B, V, C, H, W = x_src.shape
                 assert B == 1, "Use batch size 1 for eval."
                 with torch.no_grad():
-                    x_tgt_pred = accelerator.unwrap_model(net_difix)(x_src, prompt_tokens=batch_val["input_ids"].cuda())
+                    model_for_eval = net_difix.module if args.deepspeed else accelerator.unwrap_model(net_difix)
+                    x_tgt_pred = model_for_eval(x_src, prompt_tokens=batch_val["input_ids"].cuda())
                     x_tgt = x_tgt[:, 0]  # take the input view
                     x_tgt_pred = x_tgt_pred[:, 0]  # take the input view
                     loss_l2 = F.mse_loss(x_tgt_pred.float(), x_tgt.float(), reduction="mean")
@@ -567,6 +666,13 @@ if __name__ == "__main__":
         type=str,
         help="Path to checkpoint file (.pkl), directory with checkpoints, or Hugging Face model name (e.g., 'nvidia/difix_ref')",
     )
+
+    # ZeRO optimization arguments
+    parser.add_argument("--deepspeed", action="store_true", help="Enable DeepSpeed ZeRO optimization")
+    parser.add_argument("--deepspeed_config", type=str, default=None, help="Path to DeepSpeed config file")
+    parser.add_argument("--zero_stage", type=int, default=2, choices=[1, 2, 3], help="ZeRO optimization stage")
+    parser.add_argument("--offload_optimizer", action="store_true", help="Offload optimizer states to CPU")
+    parser.add_argument("--offload_param", action="store_true", help="Offload parameters to CPU (ZeRO-3)")
 
     args = parser.parse_args()
 

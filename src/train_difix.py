@@ -138,6 +138,23 @@ def main(args):
             print("=" * 50)
             global_step = int(args.resume.split("/")[-1].replace("model_", "").replace(".pkl", ""))
             net_difix, optimizer = load_ckpt_from_state_dict(net_difix, optimizer, args.resume)
+        elif "/" in args.resume and not os.path.exists(args.resume):
+            # Assume it's a Hugging Face model name (e.g., "nvidia/difix_ref")
+            print("=" * 50)
+            print(f"Loading pretrained model from Hugging Face: {args.resume}")
+            print("=" * 50)
+            from pipeline_difix import DifixPipeline
+
+            # Load the pipeline and extract the model components
+            pipeline = DifixPipeline.from_pretrained(args.resume, trust_remote_code=True)
+
+            # Transfer weights from pipeline to our model
+            net_difix.unet.load_state_dict(pipeline.unet.state_dict())
+            net_difix.vae.load_state_dict(pipeline.vae.state_dict())
+            net_difix.text_encoder.load_state_dict(pipeline.text_encoder.state_dict())
+
+            print(f"Successfully loaded pretrained model from {args.resume}")
+            global_step = 0
         else:
             raise NotImplementedError(f"Invalid resume path: {args.resume}")
     else:
@@ -544,7 +561,12 @@ if __name__ == "__main__":
     parser.add_argument("--set_grads_to_none", action="store_true")
 
     # resume
-    parser.add_argument("--resume", default=None, type=str)
+    parser.add_argument(
+        "--resume",
+        default=None,
+        type=str,
+        help="Path to checkpoint file (.pkl), directory with checkpoints, or Hugging Face model name (e.g., 'nvidia/difix_ref')",
+    )
 
     args = parser.parse_args()
 

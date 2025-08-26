@@ -174,8 +174,14 @@ def main(args):
         tracker_config = dict(vars(args))
         accelerator.init_trackers(args.tracker_project_name, config=tracker_config, init_kwargs=init_kwargs)
 
+    max_train_steps = args.num_training_epochs * len(dl_train)
+    if args.max_train_steps < max_train_steps:
+        max_train_steps = args.max_train_steps
+        print("Use args.max_train_steps:", max_train_steps)
+    else:
+        print("Use num_training_epochs:", max_train_steps)
     progress_bar = tqdm(
-        range(0, args.max_train_steps),
+        range(0, max_train_steps),
         initial=global_step,
         desc="Steps",
         disable=not accelerator.is_local_main_process,
@@ -183,6 +189,8 @@ def main(args):
 
     # start the training loop
     for epoch in range(0, args.num_training_epochs):
+        if global_step >= args.max_train_steps:
+            break
         for step, batch in enumerate(dl_train):
             l_acc = [net_difix]
             with accelerator.accumulate(*l_acc):
@@ -331,6 +339,50 @@ def main(args):
                         gc.collect()
                         torch.cuda.empty_cache()
                     accelerator.log(logs, step=global_step)
+
+                # Check if we should stop training
+                if global_step >= args.max_train_steps:
+                    break
+
+            # Break out of epoch loop if max steps reached
+            if global_step >= args.max_train_steps:
+                break
+
+    # Training finished - save final checkpoint and cleanup
+    if accelerator.is_main_process:
+        # Save final checkpoint
+        final_outf = os.path.join(args.output_dir, "checkpoints", f"model_{global_step}.pkl")
+        save_ckpt(accelerator.unwrap_model(net_difix), optimizer, final_outf)
+        print(f"Training completed. Final checkpoint saved to {final_outf}")
+
+        # Final evaluation if not done recently
+        if args.eval_freq > 0 and global_step % args.eval_freq != 1:
+            print("Running final evaluation...")
+            l_l2, l_lpips = [], []
+            for step, batch_val in enumerate(dl_val):
+                if step >= args.num_samples_eval:
+                    break
+                x_src = batch_val["conditioning_pixel_values"].to(accelerator.device, dtype=weight_dtype)
+                x_tgt = batch_val["output_pixel_values"].to(accelerator.device, dtype=weight_dtype)
+                B, V, C, H, W = x_src.shape
+                assert B == 1, "Use batch size 1 for eval."
+                with torch.no_grad():
+                    x_tgt_pred = accelerator.unwrap_model(net_difix)(x_src, prompt_tokens=batch_val["input_ids"].cuda())
+                    x_tgt = x_tgt[:, 0]  # take the input view
+                    x_tgt_pred = x_tgt_pred[:, 0]  # take the input view
+                    loss_l2 = F.mse_loss(x_tgt_pred.float(), x_tgt.float(), reduction="mean")
+                    loss_lpips = net_lpips(x_tgt_pred.float(), x_tgt.float()).mean()
+                    l_l2.append(loss_l2.item())
+                    l_lpips.append(loss_lpips.item())
+
+            final_logs = {"final_eval/l2": np.mean(l_l2), "final_eval/lpips": np.mean(l_lpips)}
+            accelerator.log(final_logs, step=global_step)
+            print(f"Final evaluation - L2: {np.mean(l_l2):.6f}, LPIPS: {np.mean(l_lpips):.6f}")
+
+    # End tracking and cleanup
+    accelerator.end_training()
+    if accelerator.is_main_process:
+        print("Training completed successfully!")
 
 
 if __name__ == "__main__":

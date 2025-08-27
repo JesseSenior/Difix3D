@@ -100,14 +100,6 @@ def main(args):
         weight_decay=args.adam_weight_decay,
         eps=args.adam_epsilon,
     )
-    lr_scheduler = get_scheduler(
-        args.lr_scheduler,
-        optimizer=optimizer,
-        num_warmup_steps=args.lr_warmup_steps * accelerator.num_processes,
-        num_training_steps=args.max_train_steps * accelerator.num_processes,
-        num_cycles=args.lr_num_cycles,
-        power=args.lr_power,
-    )
 
     dataset_train = PairedDataset(dataset_path=args.dataset_path, split="train", tokenizer=net_difix.tokenizer)
     dl_train = torch.utils.data.DataLoader(
@@ -116,6 +108,21 @@ def main(args):
     dataset_val = PairedDataset(dataset_path=args.dataset_path, split="test", tokenizer=net_difix.tokenizer)
     random.Random(42).shuffle(dataset_val.img_ids)
     dl_val = torch.utils.data.DataLoader(dataset_val, batch_size=1, shuffle=False, num_workers=0)
+
+    max_train_steps = args.num_training_epochs * len(dl_train)
+    if args.max_train_steps < max_train_steps:
+        max_train_steps = args.max_train_steps
+        print("Use args.max_train_steps:", max_train_steps)
+    else:
+        print("Use num_training_epochs:", max_train_steps)
+    lr_scheduler = get_scheduler(
+        args.lr_scheduler,
+        optimizer=optimizer,
+        num_warmup_steps=args.lr_warmup_steps * accelerator.num_processes,
+        num_training_steps=max_train_steps * accelerator.num_processes,
+        num_cycles=args.lr_num_cycles,
+        power=args.lr_power,
+    )
 
     # Resume from checkpoint
     global_step = 0
@@ -191,12 +198,6 @@ def main(args):
         tracker_config = dict(vars(args))
         accelerator.init_trackers(args.tracker_project_name, config=tracker_config, init_kwargs=init_kwargs)
 
-    max_train_steps = args.num_training_epochs * len(dl_train)
-    if args.max_train_steps < max_train_steps:
-        max_train_steps = args.max_train_steps
-        print("Use args.max_train_steps:", max_train_steps)
-    else:
-        print("Use num_training_epochs:", max_train_steps)
     progress_bar = tqdm(
         range(0, max_train_steps),
         initial=global_step,
@@ -330,8 +331,13 @@ def main(args):
                     # checkpoint the model
                     if global_step % args.checkpointing_steps == 1:
                         outf = os.path.join(args.output_dir, "checkpoints", f"model_{global_step}.pkl")
-                        # accelerator.unwrap_model(net_difix).save_model(outf)
                         save_ckpt(accelerator.unwrap_model(net_difix), optimizer, outf)
+    
+                        # remove previous ckpt
+                        checkpoint_dir = os.path.join(args.output_dir, "checkpoints")
+                        for file in os.listdir(checkpoint_dir):
+                            if file.endswith(".pkl") and not file.endswith(f"model_{global_step}.pkl"):
+                                os.remove(os.path.join(checkpoint_dir, file))
 
                     # compute validation set L2, LPIPS
                     if args.eval_freq > 0 and global_step % args.eval_freq == 1:

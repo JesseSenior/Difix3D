@@ -6,36 +6,40 @@ from torchvision import transforms
 from transformers import AutoTokenizer, CLIPTextModel
 
 
-def make_1step_sched():
-    noise_scheduler_1step = DDPMScheduler.from_pretrained("stabilityai/sd-turbo", subfolder="scheduler")
-    noise_scheduler_1step.set_timesteps(1, device="cuda")
-    noise_scheduler_1step.alphas_cumprod = noise_scheduler_1step.alphas_cumprod.cuda()
-    return noise_scheduler_1step
-
-
 class Difix(torch.nn.Module):
     def __init__(
         self,
-        pretrained_name=None,
         pretrained_path=None,
-        ckpt_folder="checkpoints",
+        weight_dtype="fp16",
         mv_unet=False,
         timestep=999,
-        verbose=False,
     ):
         super().__init__()
+
+        extra_args = {}
+        if weight_dtype == "fp16":
+            extra_args = {
+                "torch_dtype": torch.float16,
+                "variant": "fp16",
+            }
+
         self.tokenizer = AutoTokenizer.from_pretrained("stabilityai/sd-turbo", subfolder="tokenizer")
-        self.text_encoder = CLIPTextModel.from_pretrained("stabilityai/sd-turbo", subfolder="text_encoder").cuda()
-        self.sched = make_1step_sched()
+        self.text_encoder = CLIPTextModel.from_pretrained(
+            "stabilityai/sd-turbo", subfolder="text_encoder", **extra_args
+        ).cuda()
+        self.sched = DDPMScheduler.from_pretrained("stabilityai/sd-turbo", subfolder="scheduler", **extra_args)
+        self.sched.set_timesteps(1, device="cuda")
+        self.sched.alphas_cumprod = self.sched.alphas_cumprod.cuda()
 
-        vae = AutoencoderKL.from_pretrained("stabilityai/sd-turbo", subfolder="vae")
+        vae = AutoencoderKL.from_pretrained("stabilityai/sd-turbo", subfolder="vae", **extra_args)
 
+        self.mv_unet = mv_unet
         if mv_unet:
             from difix3d.models.mv_unet import UNet2DConditionModel
         else:
             from diffusers import UNet2DConditionModel
 
-        unet = UNet2DConditionModel.from_pretrained("stabilityai/sd-turbo", subfolder="unet")
+        unet = UNet2DConditionModel.from_pretrained("stabilityai/sd-turbo", subfolder="unet", **extra_args)
 
         if pretrained_path is not None:
             sd = torch.load(pretrained_path, map_location="cpu")
@@ -43,9 +47,6 @@ class Difix(torch.nn.Module):
             for k in sd["state_dict_unet"]:
                 _sd_unet[k] = sd["state_dict_unet"][k]
             unet.load_state_dict(_sd_unet)
-
-        elif pretrained_name is None and pretrained_path is None:
-            print("Initializing model with random weights")
 
         # unet.enable_xformers_memory_efficient_attention()
         unet.to("cuda")
@@ -55,14 +56,6 @@ class Difix(torch.nn.Module):
         self.timesteps = torch.tensor([timestep], device="cuda").long()
         self.text_encoder.requires_grad_(False)
         self.vae.requires_grad_(False)
-
-        if verbose:
-            # print number of trainable parameters
-            print("=" * 50)
-            print(
-                f"Number of trainable parameters in UNet: {sum(p.numel() for p in unet.parameters() if p.requires_grad) / 1e6:.2f}M"
-            )
-            print("=" * 50)
 
     def set_eval(self):
         self.unet.eval()
@@ -93,6 +86,9 @@ class Difix(torch.nn.Module):
             caption_enc = self.text_encoder(prompt_tokens)[0]
 
         num_views = x.shape[1]
+        if self.mv_unet:
+            assert num_views == 2, "mv_unet requires valid ref view"
+
         x = rearrange(x, "b v c h w -> (b v) c h w")
         z = self.vae.encode(x).latent_dist.sample() * self.vae.config.scaling_factor
         caption_enc = repeat(caption_enc, "b n c -> (b v) n c", v=num_views)

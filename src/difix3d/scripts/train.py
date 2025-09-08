@@ -48,9 +48,13 @@ def main(args):
         os.makedirs(os.path.join(args.output_dir, "checkpoints"), exist_ok=True)
         os.makedirs(os.path.join(args.output_dir, "eval"), exist_ok=True)
 
+    weight_dtype = torch.float32
+    if accelerator.mixed_precision == "fp16":
+        weight_dtype = torch.float16
+
     net_difix = Difix(
-        lora_rank_vae=args.lora_rank_vae,
         timestep=args.timestep,
+        weight_dtype=weight_dtype,
         mv_unet=args.mv_unet,
     )
     net_difix.set_train()
@@ -78,18 +82,6 @@ def main(args):
     # make the optimizer
     layers_to_opt = []
     layers_to_opt += list(net_difix.unet.parameters())
-
-    for n, _p in net_difix.vae.named_parameters():
-        if "lora" in n and "vae_skip" in n:
-            assert _p.requires_grad
-            layers_to_opt.append(_p)
-    layers_to_opt = (
-        layers_to_opt
-        + list(net_difix.vae.decoder.skip_conv_1.parameters())
-        + list(net_difix.vae.decoder.skip_conv_2.parameters())
-        + list(net_difix.vae.decoder.skip_conv_3.parameters())
-        + list(net_difix.vae.decoder.skip_conv_4.parameters())
-    )
 
     optimizer = torch.optim.AdamW(
         layers_to_opt,
@@ -167,13 +159,7 @@ def main(args):
         print("Training from scratch")
         print("=" * 50)
 
-    weight_dtype = torch.float32
-    if accelerator.mixed_precision == "fp16":
-        weight_dtype = torch.float16
-    elif accelerator.mixed_precision == "bf16":
-        weight_dtype = torch.bfloat16
-
-    # Move al networksr to device and cast to weight_dtype
+    # Move all networks to device and cast to weight_dtype
     net_difix.to(accelerator.device, dtype=weight_dtype)
     net_lpips.to(accelerator.device, dtype=weight_dtype)
     net_vgg.to(accelerator.device, dtype=weight_dtype)
@@ -494,7 +480,6 @@ if __name__ == "__main__":
     parser.add_argument("--tracker_run_name", type=str, required=True)
 
     # details about the model architecture
-    parser.add_argument("--lora_rank_vae", default=4, type=int)
     parser.add_argument("--timestep", default=199, type=int)
     parser.add_argument("--mv_unet", action="store_true")
 
@@ -558,7 +543,7 @@ if __name__ == "__main__":
             ' (default), `"wandb"` and `"comet_ml"`. Use `"all"` to report to all integrations.'
         ),
     )
-    parser.add_argument("--mixed_precision", type=str, default=None, choices=["no", "fp16", "bf16"])
+    parser.add_argument("--mixed_precision", type=str, default="fp16", choices=["no", "fp16"])
     parser.add_argument(
         "--enable_xformers_memory_efficient_attention", action="store_true", help="Whether or not to use xformers."
     )

@@ -13,26 +13,26 @@
 # limitations under the License.
 
 
-from dataclasses import dataclass, field
-from typing import Optional, Type
-from pathlib import Path
-from PIL import Image
 import os
-import tqdm
 import random
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Optional, Type
+
 import numpy as np
 import torch
+import tqdm
+from nerfstudio.cameras.cameras import Cameras
+from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
+from nerfstudio.pipelines.base_pipeline import VanillaPipeline, VanillaPipelineConfig
+from PIL import Image
 from torch.cuda.amp.grad_scaler import GradScaler
 from typing_extensions import Literal
-from nerfstudio.cameras.cameras import Cameras
-from nerfstudio.pipelines.base_pipeline import VanillaPipeline, VanillaPipelineConfig
-from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
-
 
 from difix3d.difix3d_datamanager import (
     Difix3DDataManagerConfig,
 )
-from src.pipeline_difix import DifixPipeline
+from difix3d.pipeline_difix import DifixPipeline
 from examples.utils import CameraPoseInterpolator
 
 

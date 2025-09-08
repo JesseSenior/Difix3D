@@ -15,11 +15,12 @@
 
 import dataclasses
 from dataclasses import dataclass, field
-from typing import Type, Literal
-from nerfstudio.engine.trainer import Trainer, TrainerConfig
+from typing import Literal, Type
+
 from nerfstudio.engine.callbacks import TrainingCallbackAttributes
-from nerfstudio.viewer.viewer import Viewer as ViewerState
+from nerfstudio.engine.trainer import Trainer, TrainerConfig
 from nerfstudio.utils import profiler, writer
+from nerfstudio.viewer.viewer import Viewer as ViewerState
 
 
 @dataclass

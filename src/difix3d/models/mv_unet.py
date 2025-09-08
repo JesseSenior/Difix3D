@@ -17,10 +17,8 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import torch
 import torch.nn as nn
 import torch.utils.checkpoint
-
 from diffusers.configuration_utils import ConfigMixin, register_to_config
 from diffusers.loaders import UNet2DConditionLoadersMixin
-from diffusers.utils import USE_PEFT_BACKEND, BaseOutput, deprecate, logging, scale_lora_layers, unscale_lora_layers
 from diffusers.models.activations import get_activation
 from diffusers.models.attention_processor import (
     ADDED_KV_ATTENTION_PROCESSORS,
@@ -50,13 +48,21 @@ from diffusers.models.unet_2d_blocks import (
     get_down_block,
     get_up_block,
 )
-
+from diffusers.utils import (
+    USE_PEFT_BACKEND,
+    BaseOutput,
+    deprecate,
+    logging,
+    scale_lora_layers,
+    unscale_lora_layers,
+)
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
 from diffusers.models.attention import BasicTransformerBlock, _chunked_feed_forward
 from einops import rearrange
+
 
 def new_forward(
     self,

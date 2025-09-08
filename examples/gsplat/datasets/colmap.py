@@ -1,13 +1,13 @@
-import os
 import json
+import os
 from typing import Any, Dict, List, Optional
-from typing_extensions import assert_never
 
 import cv2
 import imageio.v2 as imageio
 import numpy as np
 import torch
 from pycolmap import SceneManager
+from typing_extensions import assert_never
 
 from .normalize import (
     align_principle_axes,

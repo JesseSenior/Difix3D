@@ -20,8 +20,8 @@ from nerfstudio.engine.optimizers import AdamOptimizerConfig
 from nerfstudio.engine.schedulers import ExponentialDecaySchedulerConfig
 from nerfstudio.plugins.types import MethodSpecification
 
-from difix3d.difix3d_datamanager import Difix3DDataManagerConfig
 from difix3d.difix3d import Difix3DModelConfig
+from difix3d.difix3d_datamanager import Difix3DDataManagerConfig
 from difix3d.difix3d_pipeline import Difix3DPipelineConfig
 from difix3d.difix3d_trainer import Difix3DTrainerConfig
 

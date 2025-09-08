@@ -21,6 +21,7 @@ authors = [
 ]
 maintainers = [
     { name = "NVIDIA Toronto AI Lab", email = "nv-tlabs@nvidia.com" },
+    { name = "Jesse Senior", email = "jessesenior@outlook.com" },
 ]
 keywords = [
     "3d-reconstruction",
@@ -69,4 +70,11 @@ Documentation = "https://github.com/nv-tlabs/Difix3D/blob/main/README.md"
 "Bug Tracker" = "https://github.com/nv-tlabs/Difix3D/issues"
 
 [tool.setuptools.package-dir]
-difix3d = "src"
+difix3d = "src/difix3d"
+
+[tool.ruff]
+select = ["E", "F", "I"]  # Enable pycodestyle errors, pyflakes, and isort
+fix = true  # Automatically fix issues when possible
+
+[tool.ruff.isort]
+known-first-party = ["difix3d"]

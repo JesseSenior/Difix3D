@@ -18,15 +18,14 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, Tuple, Type
 
-from rich.progress import Console
-
 from nerfstudio.cameras.rays import RayBundle
-from nerfstudio.data.utils.dataloaders import CacheDataloader
-from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.data.datamanagers.base_datamanager import (
     VanillaDataManager,
     VanillaDataManagerConfig,
 )
+from nerfstudio.data.utils.dataloaders import CacheDataloader
+from nerfstudio.model_components.ray_generators import RayGenerator
+from rich.progress import Console
 
 CONSOLE = Console(width=120)
 

@@ -19,11 +19,12 @@ from dataclasses import dataclass, field
 from typing import Type
 
 import torch
-from nerfstudio.models.nerfacto import NerfactoModel, NerfactoModelConfig
-from difix3d.difix3d_field import Difix3DField
 from nerfstudio.cameras.camera_optimizers import CameraOptimizer
 from nerfstudio.field_components.spatial_distortions import SceneContraction
 from nerfstudio.fields.density_fields import HashMLPDensityField
+from nerfstudio.models.nerfacto import NerfactoModel, NerfactoModelConfig
+
+from difix3d.difix3d_field import Difix3DField
 
 
 @dataclass

@@ -1,12 +1,13 @@
-import os
-import imageio
 import argparse
+import os
+from glob import glob
+
+import imageio
 import numpy as np
 from PIL import Image
-from glob import glob
 from tqdm import tqdm
-from model import Difix
 
+from difix3d.models.difix import Difix
 
 if __name__ == "__main__":
     # Argument parser

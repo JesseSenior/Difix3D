@@ -1,32 +1,30 @@
-import os
-import gc
-import lpips
-import random
 import argparse
+import gc
+import os
+import random
+from glob import glob
+
+import diffusers
+import lpips
 import numpy as np
 import torch
 import torch.nn.functional as F
 import torch.utils.checkpoint
 import torchvision
 import transformers
-from torchvision.transforms.functional import crop
+import wandb
 from accelerate import Accelerator
 from accelerate.utils import set_seed
-from PIL import Image
-from torchvision import transforms
-from tqdm.auto import tqdm
-from glob import glob
-from einops import rearrange
-
-import diffusers
-from diffusers.utils.import_utils import is_xformers_available
 from diffusers.optimization import get_scheduler
+from diffusers.utils.import_utils import is_xformers_available
+from einops import rearrange
+from torchvision import transforms
+from torchvision.transforms.functional import crop
+from tqdm.auto import tqdm
 
-import wandb
-
-from model import Difix, load_ckpt_from_state_dict, save_ckpt
-from dataset import PairedDataset
-from loss import gram_loss
+from difix3d.data.dataset import PairedDataset
+from difix3d.models.difix import Difix, load_ckpt_from_state_dict, save_ckpt
+from difix3d.utils.loss import gram_loss
 
 
 def main(args):

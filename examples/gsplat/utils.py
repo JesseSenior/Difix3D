@@ -1,12 +1,12 @@
 import random
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
+import torch.nn.functional as F
+from matplotlib import colormaps
 from sklearn.neighbors import NearestNeighbors
 from torch import Tensor
-import torch.nn.functional as F
-import matplotlib.pyplot as plt
-from matplotlib import colormaps
 
 
 class CameraOptModule(torch.nn.Module):

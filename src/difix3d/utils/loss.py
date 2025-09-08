@@ -1,5 +1,4 @@
 import torch
-from torchvision import transforms, models
 
 # Define style weights for different layers
 STYLE_WEIGHTS = {

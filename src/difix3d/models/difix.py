@@ -6,6 +6,26 @@ from torchvision import transforms
 from transformers import AutoTokenizer, CLIPTextModel
 
 
+def load_ckpt_from_state_dict(net_difix, optimizer, pretrained_path):
+    sd = torch.load(pretrained_path, map_location="cpu")
+
+    _sd_unet = net_difix.unet.state_dict()
+    for k in sd["state_dict_unet"]:
+        _sd_unet[k] = sd["state_dict_unet"][k]
+    net_difix.unet.load_state_dict(_sd_unet)
+
+    optimizer.load_state_dict(sd["optimizer"])
+
+    return net_difix, optimizer
+
+
+def save_ckpt(net_difix, optimizer, outf):
+    sd = {}
+    sd["state_dict_unet"] = net_difix.unet.state_dict()
+    sd["optimizer"] = optimizer.state_dict()
+    torch.save(sd, outf)
+
+
 class Difix(torch.nn.Module):
     def __init__(
         self,

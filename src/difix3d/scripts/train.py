@@ -160,7 +160,7 @@ def main(args):
         print("=" * 50)
 
     # Move all networks to device and cast to weight_dtype
-    net_difix.to(accelerator.device, dtype=weight_dtype)
+    net_difix.to(accelerator.device)#, dtype=weight_dtype)
     net_lpips.to(accelerator.device, dtype=weight_dtype)
     net_vgg.to(accelerator.device, dtype=weight_dtype)
 
